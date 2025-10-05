@@ -1,0 +1,418 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roku Web Remote</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .remote-container {
+            background-color: #2d3748; /* Slightly lighter dark for the remote */
+            border-radius: 2rem; /* More rounded corners */
+            padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px; /* Max width for a remote-like feel */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+        .nav-pad {
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left select right"
+                ". down .";
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .nav-pad .btn {
+            min-height: 48px; /* Ensure good touch target size */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .nav-pad .btn-up { grid-area: up; }
+        .nav-pad .btn-down { grid-area: down; }
+        .nav-pad .btn-left { grid-area: left; }
+        .nav-pad .btn-right { grid-area: right; }
+        .nav-pad .btn-select { grid-area: select; }
+
+        .btn {
+            background-color: #4a5568; /* Button background */
+            color: #e2e8f0; /* Light text color */
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem; /* Rounded buttons */
+            font-weight: 500;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: none;
+            outline: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .btn:hover {
+            background-color: #636b77; /* Darker on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn:active {
+            background-color: #3e4450; /* Even darker on active */
+            transform: translateY(0);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #667eea; /* A nice blue for primary actions */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+        .btn-primary:active {
+            background-color: #4c51bf;
+        }
+        .btn-red {
+            background-color: #e53e3e; /* Red for power */
+            color: white;
+        }
+        .btn-red:hover {
+            background-color: #c53030;
+        }
+        .btn-red:active {
+            background-color: #9b2c2c;
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+        }
+        .status-message.success {
+            background-color: #2f855a;
+            border-color: #38a169;
+        }
+        .status-message.error {
+            background-color: #c53030;
+            border-color: #e53e3e;
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+            vertical-align: middle;
+            fill: currentColor;
+        }
+        .ip-input-section {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .ip-input-section input {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            border: 1px solid #4a5568;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            font-size: 1rem;
+        }
+        .ip-input-section button {
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            background-color: #667eea;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+        .ip-input-section button:hover {
+            background-color: #5a67d8;
+        }
+        .current-ip-display {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #a0aec0;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="remote-container">
+        <h1 class="text-2xl font-bold text-center text-white mb-4">Roku Web Remote</h1>
+
+        <!-- IP Address Input -->
+        <div class="ip-input-section">
+            <input type="text" id="rokuIpInput" placeholder="Enter Roku TV IP (e.g., 192.168.1.110)">
+            <button id="setIpButton" class="btn-primary">Set IP</button>
+        </div>
+        <div id="currentIpDisplay" class="current-ip-display"></div>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="status-message hidden"></div>
+
+        <!-- Power & Home -->
+        <div class="flex justify-around gap-4 mb-4">
+            <button class="btn btn-red flex-1" data-command="Power">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line>
+                </svg>
+                <span class="ml-2">Power</span>
+            </button>
+            <button class="btn btn-primary flex-1" data-command="Home">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="ml-2">Home</span>
+            </button>
+        </div>
+
+        <!-- Navigation Pad -->
+        <div class="nav-pad">
+            <button class="btn btn-up" data-command="Up">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+            </button>
+            <button class="btn btn-left" data-command="Left">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <button class="btn btn-primary btn-select" data-command="Select">OK</button>
+            <button class="btn btn-right" data-command="Right">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+            <button class="btn btn-down" data-command="Down">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="button-grid mb-4">
+            <button class="btn" data-command="Back">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 5 12 12 19"></polyline>
+                </svg>
+                <span class="ml-1">Back</span>
+            </button>
+            <button class="btn" data-command="Play">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span class="ml-1">Play</span>
+            </button>
+            <button class="btn" data-command="Pause">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                <span class="ml-1">Pause</span>
+            </button>
+            <button class="btn" data-command="Rev">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon>
+                </svg>
+                <span class="ml-1">Rewind</span>
+            </button>
+            <button class="btn" data-command="InstantReplay">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M12 6v6l4 2"></path>
+                </svg>
+                <span class="ml-1">Replay</span>
+            </button>
+            <button class="btn" data-command="Fwd">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon>
+                </svg>
+                <span class="ml-1">F. Fwd</span>
+            </button>
+        </div>
+
+        <!-- Volume Controls -->
+        <div class="flex justify-around gap-4 mb-4">
+            <button class="btn flex-1" data-command="VolumeDown">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="19" y1="12" x2="22" y2="12"></line>
+                </svg>
+                <span class="ml-2">Vol -</span>
+            </button>
+            <button class="btn flex-1" data-command="VolumeMute">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+                <span class="ml-2">Mute</span>
+            </button>
+            <button class="btn flex-1" data-command="VolumeUp">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19 12A7 7 0 0 1 12 19V12H19Z"></path><path d="M12 5V12H19A7 7 0 0 0 12 5Z"></path>
+                </svg>
+                <span class="ml-2">Vol +</span>
+            </button>
+        </div>
+
+        <!-- Other Controls (Info, Search, Inputs) -->
+        <div class="button-grid mb-4">
+            <button class="btn" data-command="Info">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span class="ml-1">Info</span>
+            </button>
+            <button class="btn" data-command="Search">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span class="ml-1">Search</span>
+            </button>
+            <button class="btn" data-command="InputHDMI1">HDMI 1</button>
+            <button class="btn" data-command="InputHDMI2">HDMI 2</button>
+            <button class="btn" data-command="InputHDMI3">HDMI 3</button>
+            <button class="btn" data-command="InputHDMI4">HDMI 4</button>
+        </div>
+
+        <p class="text-xs text-gray-500 text-center mt-4">
+            *Volume and Input commands only work on Roku TVs, not standalone Roku players.
+        </p>
+    </div>
+
+    <script>
+        // Roku TV IP address and port
+        let ROKU_IP = '192.168.1.110'; // Default IP, will be loaded from localStorage or set by user
+        const ROKU_PORT = '8060';
+        const statusMessageDiv = document.getElementById('statusMessage');
+        const rokuIpInput = document.getElementById('rokuIpInput');
+        const setIpButton = document.getElementById('setIpButton');
+        const currentIpDisplay = document.getElementById('currentIpDisplay');
+
+        /**
+         * Displays a status message to the user.
+         * @param {string} message - The message to display.
+         * @param {boolean} isError - True if it's an error message, false for success/info.
+         */
+        function showStatusMessage(message, isError = false) {
+            statusMessageDiv.textContent = message;
+            statusMessageDiv.classList.remove('hidden', 'success', 'error');
+            if (isError) {
+                statusMessageDiv.classList.add('error');
+            } else {
+                statusMessageDiv.classList.add('success');
+            }
+            // Hide message after 3 seconds
+            setTimeout(() => {
+                statusMessageDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        /**
+         * Updates the displayed IP address and saves it to local storage.
+         * @param {string} ip - The new IP address.
+         */
+        function updateRokuIp(ip) {
+            ROKU_IP = ip;
+            localStorage.setItem('rokuIp', ip); // Save to local storage
+            currentIpDisplay.textContent = `Current Roku IP: ${ROKU_IP}`;
+            showStatusMessage(`Roku IP set to ${ROKU_IP}`);
+        }
+
+        /**
+         * Sends an ECP command to the Roku device.
+         * @param {string} command - The ECP keypress command (e.g., 'Home', 'VolumeUp').
+         */
+        async function sendRokuCommand(command) {
+            if (!ROKU_IP || ROKU_IP === '0.0.0.0') { // Check for a valid IP
+                showStatusMessage('Please enter a valid Roku TV IP address first!', true);
+                return;
+            }
+
+            const url = `http://${ROKU_IP}:${ROKU_PORT}/keypress/${command}`;
+            console.log(`Sending command: ${command} to ${url}`);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    // An empty body is required for keypress commands
+                    body: '',
+                    headers: {
+                        'Content-Type': 'text/plain' // Or application/x-www-form-urlencoded
+                    }
+                });
+
+                if (response.ok) {
+                    showStatusMessage(`Command '${command}' sent successfully!`);
+                    console.log(`Command '${command}' successful.`);
+                } else {
+                    const errorText = await response.text();
+                    showStatusMessage(`Error sending '${command}': ${response.status} ${response.statusText} - ${errorText}`, true);
+                    console.error(`Error sending '${command}': ${response.status} ${response.statusText} - ${errorText}`);
+                }
+            } catch (error) {
+                showStatusMessage(`Network error sending '${command}': ${error.message}. Check Roku IP and network connection.`, true);
+                console.error(`Network error sending '${command}':`, error);
+            }
+        }
+
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load IP from local storage on page load
+            const savedIp = localStorage.getItem('rokuIp');
+            if (savedIp) {
+                rokuIpInput.value = savedIp;
+                updateRokuIp(savedIp);
+            } else {
+                // If no saved IP, prompt user to enter it
+                currentIpDisplay.textContent = 'Please enter your Roku TV IP address above.';
+            }
+
+            setIpButton.addEventListener('click', () => {
+                const newIp = rokuIpInput.value.trim();
+                if (newIp) {
+                    updateRokuIp(newIp);
+                } else {
+                    showStatusMessage('IP address cannot be empty!', true);
+                }
+            });
+
+            // Allow setting IP by pressing Enter in the input field
+            rokuIpInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    setIpButton.click();
+                }
+            });
+
+            const buttons = document.querySelectorAll('.btn[data-command]');
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const command = button.dataset.command;
+                    sendRokuCommand(command);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
